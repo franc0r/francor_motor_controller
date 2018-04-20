@@ -40,23 +40,33 @@ namespace CAN
     constexpr uint8_t SPEED_500k  = 1;
     constexpr uint8_t SPEED_1M    = 0;
 
+/*
+ * @brief: BLDCData which is exchanged between board and pc
+ */
 class BLDCData
 {
 public:
   union {
     struct {
-      int16_t _speed_cmd;
-      uint8_t _stop_cmd;
-      uint8_t _nui[5];
+      int16_t _speed_cmd; //!< Speed command from PC to Board
+      uint8_t _stop_cmd;  //!< Stop command from PC to Board
+      uint8_t _n1[5];     //!< Placeholder
     };
-
-    uint8_t _raw_data[8];
-  };
+    
+     struct {
+      uint8_t _n2[6];     //!< Placeholder
+      int16_t _speed_hz;  //!< Current speed from Board to PC
+     };
+     
+     uint8_t _raw_data[8]; //!< Raw data buffer
+   };
 
   BLDCData()     : _raw_data{0, 0, 0, 0, 0, 0, 0, 0}  {}
   
   BLDCData(const int16_t& speed_cmd, const uint8_t& stop_cmd) 
-    : _speed_cmd(speed_cmd), _stop_cmd(stop_cmd), _nui{0, 0, 0, 0, 0} {}
+    : _speed_cmd(speed_cmd), _stop_cmd(stop_cmd), _n1{0, 0, 0, 0, 0} {}
+
+  BLDCData(const int16_t& speed_hz) : _speed_hz(speed_hz), _n2{0, 0, 0, 0, 0, 0}  {}
     
   BLDCData(const uint8_t* data) 
     : _raw_data{data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]} {}
@@ -66,22 +76,51 @@ public:
 class Interface
 {
 public:
-  Interface(const uint8_t can_speed) :
+  /**
+   * @brief Constructor of interface class
+   */
+  Interface(const uint8_t can_speed,
+            const uint16_t tx_address,
+            const uint16_t rx_address) :
+  _tx_address(tx_address),
+  _rx_address(rx_address),
   _can_speed(can_speed)
   {
     
   }
 
+  /**
+   * @brief Initializes communication with setup speed
+   */
   uint8_t init(void) const {
     return mcp2515_init(_can_speed);
   }
 
-  bool send(const tCAN& msg) const {
-    tCAN message = msg;
+  /*
+   * @brief Receives and transmits CAN messages
+   */
+  bool update(void) {
+    receive();
+    
+    // transmit data
+    send();
+  }
+
+  void setSpeedHz(const int16_t& speed_hz) {_tx_data._speed_hz = speed_hz;}
+  const int16_t getSpeedCmd(void) const {return _rx_data._speed_cmd;}
+  const uint8_t getStopCmd(void) const {return _rx_data._stop_cmd;}
+
+private:
+
+  bool send() {
+    _msg_buff.id = _tx_address;
+    _msg_buff.header.rtr = 0;
+    _msg_buff.header.length = 8;
+    memcpy(_msg_buff.data, _tx_data._raw_data, 8);
     
     mcp2515_bit_modify(CANCTRL, (1<<REQOP2)|(1<<REQOP1)|(1<<REQOP0), 0);
 
-    if(mcp2515_send_message(&message)) {
+    if(mcp2515_send_message(&_msg_buff)) {
       return true;
     }
     else {
@@ -89,9 +128,20 @@ public:
     }
   }
 
-  bool receive(tCAN* msg) const {
+  bool receive() {
+    _msg_buff.id            = _rx_address;
+    _msg_buff.header.rtr    = 0;
+    _msg_buff.header.length = 8;
+    memcpy(_msg_buff.data, _rx_data._raw_data, 8);
+    
     if(mcp2515_check_message()) {
-      if(mcp2515_get_message(msg)) {
+      if(mcp2515_get_message(&_msg_buff)) {
+        // Check for correct id
+        if(_msg_buff.id == _rx_address) {
+          // copy data
+          memcpy(_rx_data._raw_data, _msg_buff.data, 8);
+        }
+        
         return true;
       }
     }
@@ -100,7 +150,13 @@ public:
   }
 
 private:
-  const uint8_t _can_speed;
+  const uint8_t   _can_speed;  //!< CAN Speed
+  const uint16_t  _tx_address; //!< CAN address of transmited data
+  const uint16_t  _rx_address; //!< CAN address of received data
+
+  tCAN          _msg_buff; //!< CAN message buffer
+  BLDCData      _rx_data;  //!< Buffer of received data
+  BLDCData      _tx_data;  //!< Buffer of transmit data
 };
 };
 

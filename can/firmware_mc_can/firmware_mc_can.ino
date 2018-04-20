@@ -4,8 +4,10 @@
 #include "global.h"
 #include "CANInterface.h"
 
+constexpr uint16_t  TX_ADDRESS = 0x100;
+constexpr uint16_t  RX_ADDRESS = 0x101;
 
-CAN::Interface can(CAN::SPEED_500k);
+CAN::Interface can(CAN::SPEED_500k, TX_ADDRESS, RX_ADDRESS);
 
 /*
  * Empfängt:
@@ -25,30 +27,23 @@ void setup() {
 }
 
 void loop() {
-  tCAN rx_message;
 
-
-  
+  int16_t value = 0;
   
   while(true) {
-    if(can.receive(&rx_message)) {
-      CAN::BLDCData rxBLDC(rx_message.data);
-      Serial.print("Speed: ");
-      Serial.print(rxBLDC._speed_cmd);
-      Serial.print(" Break: ");
-      Serial.print(rxBLDC._stop_cmd);
+    can.update();
+
+    if(Serial.available()){
+      Serial.print("Speed Cmd: ");
+      Serial.print(can.getSpeedCmd());
+      Serial.print(" Break Cmd: ");
+      Serial.print(can.getStopCmd());
       Serial.println();
-     
-      
     }
 
-    const CAN::BLDCData test(10, 0);
-    for(uint8_t i = 0; i < 8; i++) {
-      Serial.print(test._raw_data[i]);
-      Serial.print(" ");
-    }
-    Serial.println();
+    value ++;
+    can.setSpeedHz(value);
 
-    delay(1000);
+    delay(100);
   }
 }
