@@ -80,11 +80,14 @@ public:
    * @brief Constructor of interface class
    */
   Interface(const uint8_t can_speed,
-            const uint16_t tx_address,
-            const uint16_t rx_address) :
-  _tx_address(tx_address),
-  _rx_address(rx_address),
-  _can_speed(can_speed)
+            const uint16_t tx_address1,
+            const uint16_t rx_address1,
+            const uint16_t tx_address2,
+            const uint16_t rx_address2) :
+  _tx_address({tx_address1, tx_address2}),
+  _rx_address({rx_address1, rx_address2}),
+  _can_speed(can_speed),
+  _tx_id(0)
   {
     
   }
@@ -103,20 +106,19 @@ public:
     receive();
     
     // transmit data
-    send();
+    //send();
   }
 
-  void setSpeedHz(const int16_t& speed_hz) {_tx_data._speed_hz = speed_hz;}
-  const int16_t getSpeedCmd(void) const {return _rx_data._speed_cmd;}
-  const uint8_t getStopCmd(void) const {return _rx_data._stop_cmd;}
+  BLDCData      _rx_data[2];  //!< Buffer of received data
+  BLDCData      _tx_data[2];  //!< Buffer of transmit data
 
 private:
 
   bool send() {
-    _msg_buff.id = _tx_address;
+    _msg_buff.id = _tx_address[_tx_id];
     _msg_buff.header.rtr = 0;
     _msg_buff.header.length = 8;
-    memcpy(_msg_buff.data, _tx_data._raw_data, 8);
+    memcpy(_msg_buff.data, _tx_data[_tx_id]._raw_data, 8);
     
     mcp2515_bit_modify(CANCTRL, (1<<REQOP2)|(1<<REQOP1)|(1<<REQOP0), 0);
 
@@ -126,37 +128,41 @@ private:
     else {
       return false;
     }
+
+    if(_tx_id == 0) {
+      _tx_id = 1;
+    }
+    else {
+      _tx_id = 0;
+    }
+    
+    
   }
 
   bool receive() {
-    _msg_buff.id            = _rx_address;
-    _msg_buff.header.rtr    = 0;
-    _msg_buff.header.length = 8;
-    memcpy(_msg_buff.data, _rx_data._raw_data, 8);
-    
     if(mcp2515_check_message()) {
-      if(mcp2515_get_message(&_msg_buff)) {
-        // Check for correct id
-        if(_msg_buff.id == _rx_address) {
-          // copy data
-          memcpy(_rx_data._raw_data, _msg_buff.data, 8);
+        if(mcp2515_get_message(&_msg_buff)) {
+          for(uint8_t idx = 0; idx < 2; idx++) {
+            if(_msg_buff.id == _rx_address[idx]) {
+              memcpy(_rx_data[idx]._raw_data, _msg_buff.data, 8);
+              return true;
+            }
+          }
+          
         }
-        
-        return true;
       }
-    }
-
     return false;
   }
 
 private:
   const uint8_t   _can_speed;  //!< CAN Speed
-  const uint16_t  _tx_address; //!< CAN address of transmited data
-  const uint16_t  _rx_address; //!< CAN address of received data
+  
+  const uint16_t  _tx_address[2]; //!< CAN address of transmited data 1
+  const uint16_t  _rx_address[2]; //!< CAN address of transmited data 2
+  
+  uint8_t         _tx_id;         //!< Changes ID to send every message
 
-  tCAN          _msg_buff; //!< CAN message buffer
-  BLDCData      _rx_data;  //!< Buffer of received data
-  BLDCData      _tx_data;  //!< Buffer of transmit data
+  tCAN            _msg_buff; //!< CAN message buffer
 };
 };
 
