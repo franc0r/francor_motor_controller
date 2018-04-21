@@ -1,0 +1,33 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "/home/m1ch1/software/arduino/arduino-1.8.5/hardware/arduino/avr/cores/arduino",
+                "/home/m1ch1/software/arduino/arduino-1.8.5/hardware/tools/avr/avr/include/",
+                "/home/m1ch1/software/arduino/arduino-1.8.5/hardware/arduino/avr/variants/standard/",
+                "/home/m1ch1/software/arduino/arduino-1.8.5/libraries/Servo/src",
+                "/home/m1ch1/software/arduino/arduino-1.8.5/libraries/SoftPWM-1.0.0",
+                "/home/m1ch1/software/arduino/arduino-1.8.5/libraries/ros_lib",
+                "/home/m1ch1/Arduino/libraries/SoftPWM-1.0.0"
+            ],
+            "browse": {
+                "limitSymbolsToIncludedHeaders": false,
+                "path": [
+                    "/home/m1ch1/software/arduino/arduino-1.8.5/hardware/arduino/avr/cores/arduino",
+                    "/home/m1ch1/software/arduino/arduino-1.8.5/hardware/tools/avr/avr/include/",
+                    "/home/m1ch1/software/arduino/arduino-1.8.5/hardware/arduino/avr/variants/standard/",
+                    "/home/m1ch1/software/arduino/arduino-1.8.5/libraries/Servo/src",
+                    "/home/m1ch1/software/arduino/arduino-1.8.5/libraries/SoftPWM-1.0.0",
+                    "/home/m1ch1/software/arduino/arduino-1.8.5/libraries/ros_lib",
+                    "/home/m1ch1/Arduino/libraries/SoftPWM-1.0.0"
+                ]
+            },
+            "intelliSenseMode": "clang-x64",
+            "compilerPath": "/usr/bin/clang",
+            "cStandard": "c11",
+            "cppStandard": "c++17"
+        }
+    ],
+    "version": 3
+}
