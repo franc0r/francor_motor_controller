@@ -9,9 +9,14 @@ namespace francor {
 
 namespace motor_controller {
 
-bool CanInterface::initialize(const std::string device, std::function<void(const CanMsg&)>& callback)
+CanInterface::~CanInterface(void)
 {
-  if (_socket < 0)
+  this->stop();
+}
+
+bool CanInterface::initialize(const std::string device, std::function<void(const CanMsg&)> callback)
+{
+  if (this->isInitialized())
   {
     ROS_ERROR("CanInterface: can't interface is already intialized. --> return.");
     return false;
