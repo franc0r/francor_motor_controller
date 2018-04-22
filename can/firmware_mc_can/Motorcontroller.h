@@ -1,5 +1,5 @@
 /*
- * MotorcontrollerMsg.h
+ * Motorcontroller.h
  *
  *  Created on: 19.04.2018
  *      Author: m4ffle
@@ -28,6 +28,9 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
+
+#ifndef __MOTORCONTROLLER_H
+#define __MOTORCONTROLLER_H
 
 #include <SoftPWM_timer.h>
 #include <SoftPWM.h>
@@ -96,4 +99,6 @@ private:
 
   int _reverse;
 };
+
+#endif /*__MOTORCONTROLLER_H */
 
