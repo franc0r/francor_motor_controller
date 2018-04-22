@@ -48,16 +48,23 @@ namespace francor
             }__attribute__((packed));
         };
 
-        int16_t _can_id;  //!< CAN ID of the message
+        const int16_t _can_id;  //!< CAN ID of the message
     };
 
     struct MotorStatusMsg {
+      MotorStatusMsg()
+        : _can_id(0), _raw_data{0, 0, 0, 0, 0, 0, 0, 0} {}
+      MotorStatusMsg(const uint16_t& can_id)
+        : _can_id(can_id), _raw_data{0, 0, 0, 0, 0, 0, 0, 0} {}
+      
         uint8_t _raw_data[8];
 
         struct {
-            int16_t     _speed; //!< RPM
-        };
+            uint16_t  _ticks_per_sec;
+            uint8_t   _stop;
+            uint8_t   _timeout;
+        }__attribute__((packed));
 
-        int16_t _can_id;  //!< CAN ID of the message
+        const int16_t _can_id;  //!< CAN ID of the message
     };
 };
