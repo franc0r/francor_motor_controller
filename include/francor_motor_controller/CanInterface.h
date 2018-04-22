@@ -49,11 +49,11 @@ public:
   CanInterface(void) = default;
   ~CanInterface(void);
 
-  bool initialize(const std::string device, std::function<void(const francor::motor_controller::CanMsg&)>& callback);
+  bool initialize(const std::string device, std::function<void(const francor::motor_controller::CanMsg&)> callback);
 
   void start(void);
   void stop(void);
-  inline bool isInitialized(void) const noexcept { return _socket < 0; }
+  inline bool isInitialized(void) const noexcept { return _socket > 0; }
   void send(const CanMsg& msg);
 
 private:

@@ -52,6 +52,12 @@ public:
   {
     std::memcpy(_data.data(), frame.data, sizeof(frame.data));
   }
+  CanMsg(const std::uint32_t id, const std::uint8_t dlc, const char* data)
+    : _id(id),
+      _dlc(dlc)
+  {
+    std::memcpy(_data.data(), data, dlc);
+  }
   CanMsg(const CanMsg&) = default;
   CanMsg(CanMsg&&) = default;
   ~CanMsg(void) = default;
