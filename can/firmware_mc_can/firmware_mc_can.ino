@@ -46,6 +46,8 @@ constexpr uint8_t NUM_MOTORCONTROLLER         = (sizeof(motorcontroller)/sizeof(
 //Motorcontroller g_mc_1(A4, A5, A6, A7, true);
 //Motorcontroller g_mc_1(A4, A5, 5, true); //Motorcontroller break port changed
 
+/* Speed calculation not used */
+/*
 void tickMotorcontroller1(void) {
   motorcontroller[0].tick();
 }
@@ -53,6 +55,7 @@ void tickMotorcontroller1(void) {
 void tickMotorcontroller2(void) {
   motorcontroller[1].tick(); 
 }
+*/
 
 void sendStatusOnCan(void) {
   static uint16_t sys_tick_cnt = 0;
@@ -68,7 +71,9 @@ void sendStatusOnCan(void) {
       txMsg.header.ide = 0;
       txMsg.header.rtr = 0;
       txMsg.header.length = 8;
-      txMsg.data[0] = (uint8_t)(motorcontroller[0].getTicksPerSec());
+
+      /* Speed calculation not used */
+      /*txMsg.data[0] = (uint8_t)(motorcontroller[0].getTicksPerSec());
       txMsg.data[1] = (uint8_t)(motorcontroller[0].getTicksPerSec()>>8);
       txMsg.data[2] = (uint8_t)(can_control_msgs[0]._stop);
       txMsg.data[3] = (uint8_t)(motorcontroller[1].getTicksPerSec());
@@ -76,8 +81,9 @@ void sendStatusOnCan(void) {
       txMsg.data[5] = (uint8_t)(can_control_msgs[1]._stop);
       txMsg.data[6] = timeout_detd[0];
       txMsg.data[7] = timeout_detd[1];
+
       mcp2515_bit_modify(CANCTRL, (1<<REQOP2)|(1<<REQOP1)|(1<<REQOP0), 0);
-      mcp2515_send_message(&txMsg);
+      mcp2515_send_message(&txMsg);*/
       sys_tick_cnt = 0;
   }
 }
@@ -138,7 +144,8 @@ bool receiveCanMsgs(void) {
   return new_data;
 }
 
-void updateWheelSpeed(void) {
+/* Speed calculation not used */
+/*void updateWheelSpeed(void) {
   static uint16_t sys_tick_cnt = 0;
 
   // increase system tick counter
@@ -153,7 +160,7 @@ void updateWheelSpeed(void) {
     // reset tick counter
     sys_tick_cnt = 0;
   }  
-}
+}*/
 
 void setup() {
   // Serial.begin(115200);
@@ -176,11 +183,12 @@ void setup() {
   // //in loop PWM 
   // SoftPWMSet(A0, 128);
 
-  attachPinChangeInterrupt(digitalPinToPinChangeInterrupt(motorcontroller[0].getPinSignal()), 
+  /* Speed calculation not used */
+  /*attachPinChangeInterrupt(digitalPinToPinChangeInterrupt(motorcontroller[0].getPinSignal()), 
                                                           tickMotorcontroller1, CHANGE);
                                                           
   attachPinChangeInterrupt(digitalPinToPinChangeInterrupt(motorcontroller[1].getPinSignal()), 
-                                                          tickMotorcontroller2, CHANGE);
+                                                          tickMotorcontroller2, CHANGE);*/
 
 }
 
@@ -204,8 +212,12 @@ void loop() {
     // send status on CAN
     sendStatusOnCan();
 
+    
+    /* Speed calculation not used */
+    /*
     // update wheel speeds
     updateWheelSpeed();
+    */
 
     tmp_sys_tick = millis();
   }

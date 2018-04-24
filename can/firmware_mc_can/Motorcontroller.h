@@ -47,9 +47,9 @@ public:
     _pin_rot(pin_rot),
     _pin_break(pin_break),
     _pin_signal(pin_signal),
-    _reverse(reverse ? -1 : 1),
-    _old_tick_timestamp(0),
-    _ticks_per_sec(0)
+    _reverse(reverse ? -1 : 1)
+    //_old_tick_timestamp(0),
+    //_ticks_per_sec(0)
   {
 
   }
@@ -99,25 +99,25 @@ public:
     ::digitalWrite(_pin_break, brk);
   }
 
-  void tick(void) {
+/*  void tick(void) {
     _ticks++;
-  }
+  }*/
 
-  void calculateTicksPerMs(void) {    
+/*  void calculateTicksPerMs(void) {    
     _ticks_per_sec = _ticks * 1000 / (millis() - _old_tick_timestamp);//static_cast<uint16_t>(speed);
 
     _ticks = 0;
     _old_tick_timestamp = millis();
-  }
+  }*/
 
   const uint8_t getPinSignal() const {return _pin_signal;}
-  const uint16_t getTicksPerSec(void) const {return _ticks_per_sec;}
+//  const uint16_t getTicksPerSec(void) const {return _ticks_per_sec;}
 
 private:
-  volatile uint16_t _ticks;
+//  volatile uint16_t _ticks;
 
-  uint32_t  _old_tick_timestamp;
-  uint16_t  _ticks_per_sec;
+//  uint32_t  _old_tick_timestamp;
+//  uint16_t  _ticks_per_sec;
 
   const uint8_t _pin_speed;
   const uint8_t _pin_rot  ;
