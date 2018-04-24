@@ -24,9 +24,9 @@ constexpr uint8_t CAN_SPEED_1M    = 0;
 /*
  * Definitions
  */
-constexpr uint16_t CAN_BASE_ID               = 0x20; //!< Base CAN-ID of the motor controller (Base-ID: Status | CAN_ID + 1: Left Cmd | CAN_ID + 2: Right Cmd) 
-constexpr uint16_t CAN_TX_STATUS_TIME_MS     = 50;  //!< TX time delay of status update send via Base-ID (CAN_ID)
-constexpr uint16_t CAN_RX_TIMEOUT_MS         = 5000;  //!< Timeout threshold MCs go to break
+constexpr uint16_t CAN_BASE_ID               = 0x10; //!< Base CAN-ID of the motor controller (Base-ID: Status | CAN_ID + 1: Left Cmd | CAN_ID + 2: Right Cmd) 
+constexpr uint16_t CAN_TX_STATUS_TIME_MS     = 50;   //!< TX time delay of status update send via Base-ID (CAN_ID)
+constexpr uint16_t CAN_RX_TIMEOUT_MS         = 250;  //!< Timeout threshold MCs go to break
 constexpr uint16_t SPEED_UPDATE_TIME_MS      = 50;   //!< Time delay before update of wheel speed is performed
 
 /*
