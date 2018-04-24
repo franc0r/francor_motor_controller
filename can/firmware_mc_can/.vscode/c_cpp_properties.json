@@ -1,30 +1,35 @@
 {
     "configurations": [
         {
-            "name": "Linux",
-            "includePath": [
-                "/home/m1ch1/software/arduino/arduino-1.8.5/hardware/arduino/avr/cores/arduino",
-                "/home/m1ch1/software/arduino/arduino-1.8.5/hardware/tools/avr/avr/include/",
-                "/home/m1ch1/software/arduino/arduino-1.8.5/hardware/arduino/avr/variants/standard/",
-                "/home/m1ch1/software/arduino/arduino-1.8.5/libraries/Servo/src",
-                "/home/m1ch1/software/arduino/arduino-1.8.5/libraries/SoftPWM-1.0.0",
-                "/home/m1ch1/software/arduino/arduino-1.8.5/libraries/ros_lib",
-                "/home/m1ch1/Arduino/libraries/SoftPWM-1.0.0"
-            ],
             "browse": {
+                "databaseFilename": "",
                 "limitSymbolsToIncludedHeaders": false,
                 "path": [
-                    "/home/m1ch1/software/arduino/arduino-1.8.5/hardware/arduino/avr/cores/arduino",
-                    "/home/m1ch1/software/arduino/arduino-1.8.5/hardware/tools/avr/avr/include/",
-                    "/home/m1ch1/software/arduino/arduino-1.8.5/hardware/arduino/avr/variants/standard/",
-                    "/home/m1ch1/software/arduino/arduino-1.8.5/libraries/Servo/src",
-                    "/home/m1ch1/software/arduino/arduino-1.8.5/libraries/SoftPWM-1.0.0",
-                    "/home/m1ch1/software/arduino/arduino-1.8.5/libraries/ros_lib",
-                    "/home/m1ch1/Arduino/libraries/SoftPWM-1.0.0"
+                    "/home/martin/Programmierung/ROS/catkin_ws/devel/include",
+                    "/opt/ros/kinetic/include",
+                    "/home/martin/Programmierung/ROS/catkin_ws/src/ros_canopen/socketcan_bridge/include",
+                    "/home/martin/Programmierung/ROS/catkin_ws/src/ros_canopen/socketcan_interface/include",
+                    "/usr/include",
+                    "/home/martin/Programme/arduino-1.8.5/hardware/arduino/avr/cores/arduino",
+                    "/home/martin/Programme/arduino-1.8.5/libraries/Canbus",
+                    "/home/martin/Arduino/libraries/PinChangeInterrupt/src",
+                    "/home/martin/Arduino/libraries/SoftPWM"
                 ]
             },
+            "includePath": [
+                "/home/martin/Programmierung/ROS/catkin_ws/devel/include",
+                "/opt/ros/kinetic/include",
+                "/home/martin/Programmierung/ROS/catkin_ws/src/ros_canopen/socketcan_bridge/include",
+                "/home/martin/Programmierung/ROS/catkin_ws/src/ros_canopen/socketcan_interface/include",
+                "/usr/include",
+                "/home/martin/Programme/arduino-1.8.5/hardware/arduino/avr/cores/arduino",
+                "/home/martin/Programme/arduino-1.8.5/libraries/Canbus",
+                "/home/martin/Arduino/libraries/PinChangeInterrupt/src",
+                "/home/martin/Arduino/libraries/SoftPWM"
+            ],
+            "name": "Linux",
             "intelliSenseMode": "clang-x64",
-            "compilerPath": "/usr/bin/clang",
+            "compilerPath": "/usr/bin/gcc",
             "cStandard": "c11",
             "cppStandard": "c++17"
         }
