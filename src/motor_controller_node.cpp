@@ -75,28 +75,65 @@ private:
 void sendVelocity(const geometry_msgs::Twist& msg)
 {
   static RotationSpeed rs;
-  francor::MotorcontrolMsg command;
+  francor::MotorcontrolMsg commandLeft;
+  francor::MotorcontrolMsg commandRight;
 
   rs.calculate(msg);
 
-  command._power = static_cast<std::int16_t>(rs.speedLeft() * 255.0);
-  command._stop = (rs.speedLeft() == 0.0 ? 1 : 0);
+  commandLeft._power = static_cast<std::int16_t>(rs.speedLeft() * 255.0);
+  commandLeft._stop = (rs.speedLeft() == 0.0 ? 1 : 0);
 
-  can.send(francor::motor_controller::CanMsg(0x11, 8, reinterpret_cast<char*>(command._raw_data)));
-  std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  can.send(francor::motor_controller::CanMsg(0x21, 8, reinterpret_cast<char*>(command._raw_data)));
-  std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  can.send(francor::motor_controller::CanMsg(0x31, 8, reinterpret_cast<char*>(command._raw_data)));
+  commandRight._power = static_cast<std::int16_t>(rs.speedRight() * 255.0);
+  commandRight._stop = (rs.speedRight() == 0.0 ? 1 : 0);
+
+  const bool disableMiddle = (commandLeft._power > 0.0 && commandRight._power > 0.0) ||
+                             (commandLeft._power < 0.0 && commandRight._power < 0.0);
+
+  // Left Side
+  can.send(francor::motor_controller::CanMsg(0x11, 8, reinterpret_cast<char*>(commandLeft._raw_data)));
   std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-  command._power = static_cast<std::int16_t>(rs.speedRight() * 255.0);
-  command._stop = (rs.speedRight() == 0.0 ? 1 : 0);
+  if (disableMiddle)
+  {
+    francor::MotorcontrolMsg command;
 
-  can.send(francor::motor_controller::CanMsg(0x12, 8, reinterpret_cast<char*>(command._raw_data)));
+    command._power = 0.0;
+    command._stop = 0;
+
+    can.send(francor::motor_controller::CanMsg(0x21, 8, reinterpret_cast<char*>(command._raw_data)));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+  else
+  {
+    can.send(francor::motor_controller::CanMsg(0x21, 8, reinterpret_cast<char*>(commandLeft._raw_data)));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+
+  can.send(francor::motor_controller::CanMsg(0x31, 8, reinterpret_cast<char*>(commandLeft._raw_data)));
   std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  can.send(francor::motor_controller::CanMsg(0x22, 8, reinterpret_cast<char*>(command._raw_data)));
+
+
+  // Right Side
+  can.send(francor::motor_controller::CanMsg(0x12, 8, reinterpret_cast<char*>(commandRight._raw_data)));
   std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  can.send(francor::motor_controller::CanMsg(0x32, 8, reinterpret_cast<char*>(command._raw_data)));
+
+  if (disableMiddle)
+  {
+    francor::MotorcontrolMsg command;
+
+    command._power = 0.0;
+    command._stop = 0;
+
+    can.send(francor::motor_controller::CanMsg(0x22, 8, reinterpret_cast<char*>(command._raw_data)));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+  else
+  {
+    can.send(francor::motor_controller::CanMsg(0x22, 8, reinterpret_cast<char*>(commandRight._raw_data)));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+
+  can.send(francor::motor_controller::CanMsg(0x32, 8, reinterpret_cast<char*>(commandRight._raw_data)));
   std::this_thread::sleep_for(std::chrono::milliseconds(10));
 }
 
