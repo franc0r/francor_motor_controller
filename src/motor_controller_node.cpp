@@ -86,8 +86,8 @@ void sendVelocity(const geometry_msgs::Twist& msg)
   commandRight._power = static_cast<std::int16_t>(rs.speedRight() * 255.0);
   commandRight._stop = (rs.speedRight() == 0.0 ? 1 : 0);
 
-  const bool disableMiddle = (commandLeft._power > 0.0 && commandRight._power > 0.0) ||
-                             (commandLeft._power < 0.0 && commandRight._power < 0.0);
+  const bool disableMiddle = (commandLeft._power > 0.0 && commandRight._power < 0.0) ||
+                             (commandLeft._power < 0.0 && commandRight._power > 0.0);
 
   // Left Side
   can.send(francor::motor_controller::CanMsg(0x11, 8, reinterpret_cast<char*>(commandLeft._raw_data)));
