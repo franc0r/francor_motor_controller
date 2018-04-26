@@ -111,10 +111,8 @@ void CanInterface::send(const CanMsg& msg)
 
   can_frame frame = msg.toCanFrame();
 
-  ::write(_socket, &frame, sizeof(can_frame));
-// Disabled, becaue to much log.
-//  if (::write(_socket, &frame, sizeof(can_frame)))
-    //ROS_ERROR("CanInterface: sent bytes != frame.bytes.");
+  if (::write(_socket, &frame, sizeof(can_frame)) < 0)
+    ROS_ERROR("CanInterface: sent bytes != frame.bytes. Msh id = %x." , frame.can_id);
 }
 
 } // end namespace motor_controller
