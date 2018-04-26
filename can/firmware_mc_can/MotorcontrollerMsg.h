@@ -29,42 +29,71 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#ifndef MOTORCONTROLLER_MSG_H_
+#define MOTORCONTROLLER_MSG_H_
+
 namespace francor
 {
+    /**
+     * @brief Motor control messages
+     * 
+     * This struct defines the CAN message to control the robot
+     * motor controller
+     */
     struct MotorcontrolMsg {
         MotorcontrolMsg() 
           : _can_id(0), _raw_data{0, 0, 0, 0, 0, 0, 0, 0} {}
         MotorcontrolMsg(const uint16_t& can_id) 
-          : _can_id(can_id), _power(0), _stop(1) {}
-        MotorcontrolMsg(const int16_t& power, const bool stop)
-          : _can_id(0), _power(power), _stop(stop)  {}
+          : _can_id(can_id), _power(0), _brake(1) {}
+        MotorcontrolMsg(const int16_t& power, const bool& brake)
+          : _can_id(0), _power(power), _brake(brake)  {}
       
         union {
             uint8_t     _raw_data[8];   //!< RAW Data of the CAN message
 
             struct {
-                int16_t     _power;     //!< Max: 100 % = 10000, Min: -100% = -10000; Scaling: 1 = 0.01 %
-                uint8_t     _stop  : 1; //!< Boolean stop command
+                int16_t     _power;      //!< Max: 100 % = 10000, Min: -100% = -10000; Scaling: 1 = 0.01 %
+                uint8_t     _brake  : 1; //!< Boolean flag for brake command
             }__attribute__((packed));
         };
 
-        const int16_t _can_id;  //!< CAN ID of the message
+        const uint16_t _can_id;  //!< CAN ID of the message
     };
 
+    /**
+     * @brief Motor status
+     * 
+     * This struct defines the CAN message which is send for every 
+     * motor 
+     * 
+     */
     struct MotorStatusMsg {
       MotorStatusMsg()
         : _can_id(0), _raw_data{0, 0, 0, 0, 0, 0, 0, 0} {}
       MotorStatusMsg(const uint16_t& can_id)
         : _can_id(can_id), _raw_data{0, 0, 0, 0, 0, 0, 0, 0} {}
-      
-        uint8_t _raw_data[8];
 
-        struct {
-            uint16_t  _ticks_per_sec;
-            uint8_t   _stop;
-            uint8_t   _timeout;
-        }__attribute__((packed));
+        // TO DO: Move enum declarations to Motorcontroller.h
+        enum State {
+            MSM_ERROR           = 0,  //!< General error detected
+            MSM_OPERATIONAL     = 1,  //!< Operational
+            MSM_CMD_TIMEOUT     = 2,  //!< Timeout error (no commands received)
+        };
 
-        const int16_t _can_id;  //!< CAN ID of the message
+        union {
+            uint8_t _raw_data[8]; //!< Raw data of buffer
+
+            struct {
+                State       _state : 4;     //!< Current state of actuator
+                uint16_t    _speed_ticks;   //!< Speed of actuator (ticks/sec)
+                uint16_t    _dtime_ticks;   //!< Delta time of ticks 
+
+            }__attribute__((packed));
+        };
+        
+
+        const uint16_t _can_id;  //!< CAN ID of the message
     };
 };
+
+#endif /* MOTORCONTROLLER_MSG_H_ */

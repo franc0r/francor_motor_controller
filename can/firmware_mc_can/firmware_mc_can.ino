@@ -24,9 +24,9 @@ constexpr uint8_t CAN_SPEED_1M    = 0;
 /*
  * Definitions
  */
-constexpr uint16_t CAN_BASE_ID               = 0x10; //!< Base CAN-ID of the motor controller (Base-ID: Status | CAN_ID + 1: Left Cmd | CAN_ID + 2: Right Cmd) 
+constexpr uint16_t CAN_BASE_ID               = 0x30; //!< Base CAN-ID of the motor controller (Base-ID: Status | CAN_ID + 1: Left Cmd | CAN_ID + 2: Right Cmd) 
 constexpr uint16_t CAN_TX_STATUS_TIME_MS     = 50;   //!< TX time delay of status update send via Base-ID (CAN_ID)
-constexpr uint16_t CAN_RX_TIMEOUT_MS         = 250;  //!< Timeout threshold MCs go to break
+constexpr uint16_t CAN_RX_TIMEOUT_MS         = 1000; //!< Timeout threshold MCs go to brake
 constexpr uint16_t SPEED_UPDATE_TIME_MS      = 50;   //!< Time delay before update of wheel speed is performed
 
 /*
@@ -34,28 +34,28 @@ constexpr uint16_t SPEED_UPDATE_TIME_MS      = 50;   //!< Time delay before upda
  */
 uint8_t timeout_detd[]  = {false, false};
 
-francor::MotorcontrolMsg  can_control_msgs[]  = {francor::MotorcontrolMsg(CAN_BASE_ID + 1), 
+francor::MotorcontrolMsg  g_can_control_msgs[]  = {francor::MotorcontrolMsg(CAN_BASE_ID + 1), 
                                                  francor::MotorcontrolMsg(CAN_BASE_ID + 2)};
+ 
+francor::MotorStatusMsg   g_can_status_msgs[]   = {francor::MotorStatusMsg(CAN_BASE_ID + 5 + 1),
+                                                francor::MotorStatusMsg(CAN_BASE_ID + 5 + 2)};
 
-francor::Motorcontroller  motorcontroller[]   = {francor::Motorcontroller(A0, A1, A2, A3, false),
-                                                 francor::Motorcontroller(A4, A5, 5, A7, true)};
+francor::Motorcontroller  g_motorcontrollers[]   = {francor::Motorcontroller(A0, A1, A2, A3, false),
+                                                  francor::Motorcontroller(A4, A5, 5, 2, true)};
 
-constexpr uint8_t NUM_MOTORCONTROLLER         = (sizeof(motorcontroller)/sizeof(francor::Motorcontroller));
+constexpr uint8_t NUM_MOTORCONTROLLER         = (sizeof(g_motorcontrollers)/sizeof(francor::Motorcontroller));
 
 //Motorcontroller g_mc_0(A0, A1, A2, A3, false);
 //Motorcontroller g_mc_1(A4, A5, A6, A7, true);
-//Motorcontroller g_mc_1(A4, A5, 5, true); //Motorcontroller break port changed
+//Motorcontroller g_mc_1(A4, A5, 5, true); //Motorcontroller brake port changed
 
-/* Speed calculation not used */
-/*
 void tickMotorcontroller1(void) {
-  motorcontroller[0].tick();
+  g_motorcontrollers[0].tick();
 }
 
 void tickMotorcontroller2(void) {
-  motorcontroller[1].tick(); 
+  g_motorcontrollers[1].tick(); 
 }
-*/
 
 void sendStatusOnCan(void) {
   static uint16_t sys_tick_cnt = 0;
@@ -65,26 +65,31 @@ void sendStatusOnCan(void) {
 
   // check if sys tick cnt is greater than
   // delay threshold
-  if(sys_tick_cnt >= (CAN_TX_STATUS_TIME_MS)) {    
+  if(sys_tick_cnt >= (CAN_TX_STATUS_TIME_MS)) {
+    // update status messages
+    for(uint8_t idx = 0; idx < NUM_MOTORCONTROLLER; idx++) {
+      if(timeout_detd[idx]) {
+        g_can_status_msgs[idx]._state = francor::MotorStatusMsg::State::MSM_CMD_TIMEOUT;
+      }
+      else {
+        g_can_status_msgs[idx]._state = francor::MotorStatusMsg::State::MSM_OPERATIONAL;
+      }
+      
+      g_can_status_msgs[idx]._speed_ticks = g_motorcontrollers[idx].getSpeedTicks();
+      g_can_status_msgs[idx]._dtime_ticks = g_motorcontrollers[idx].getDTimeSpeedTicks();
+
       tCAN txMsg;
-      txMsg.id = CAN_BASE_ID;
+      txMsg.id = g_can_status_msgs[idx]._can_id;
       txMsg.header.ide = 0;
       txMsg.header.rtr = 0;
       txMsg.header.length = 8;
 
-      /* Speed calculation not used */
-      /*txMsg.data[0] = (uint8_t)(motorcontroller[0].getTicksPerSec());
-      txMsg.data[1] = (uint8_t)(motorcontroller[0].getTicksPerSec()>>8);
-      txMsg.data[2] = (uint8_t)(can_control_msgs[0]._stop);
-      txMsg.data[3] = (uint8_t)(motorcontroller[1].getTicksPerSec());
-      txMsg.data[4] = (uint8_t)(motorcontroller[1].getTicksPerSec()>>8);
-      txMsg.data[5] = (uint8_t)(can_control_msgs[1]._stop);
-      txMsg.data[6] = timeout_detd[0];
-      txMsg.data[7] = timeout_detd[1];
+      memcpy(txMsg.data, g_can_status_msgs[idx]._raw_data, 8);
 
       mcp2515_bit_modify(CANCTRL, (1<<REQOP2)|(1<<REQOP1)|(1<<REQOP0), 0);
-      mcp2515_send_message(&txMsg);*/
+      mcp2515_send_message(&txMsg);
       sys_tick_cnt = 0;
+    }
   }
 }
 
@@ -107,10 +112,10 @@ bool receiveCanMsgs(void) {
       for(uint8_t idx = 0; idx < NUM_MOTORCONTROLLER; idx++) {
 
         // check if ID is correct
-        if(can_control_msgs[idx]._can_id == msg.id) {
+        if(g_can_control_msgs[idx]._can_id == msg.id) {
 
           // copy data
-          memcpy(can_control_msgs[idx]._raw_data, msg.data, 8);
+          memcpy(g_can_control_msgs[idx]._raw_data, msg.data, 8);
 
           // reset related system tick counter to prevent timeout detection
           sys_tick_cnt[idx] = 0;
@@ -131,8 +136,8 @@ bool receiveCanMsgs(void) {
       sys_tick_cnt[idx] = 0;
 
       // timeout reset drives
-      can_control_msgs[idx]._power = 0;
-      can_control_msgs[idx]._stop = 1;
+      g_can_control_msgs[idx]._power = 0;
+      g_can_control_msgs[idx]._brake = 1;
 
       // timeout detected
       timeout_detd[idx] = 1;
@@ -145,7 +150,7 @@ bool receiveCanMsgs(void) {
 }
 
 /* Speed calculation not used */
-/*void updateWheelSpeed(void) {
+void updateWheelSpeed(void) {
   static uint16_t sys_tick_cnt = 0;
 
   // increase system tick counter
@@ -154,13 +159,13 @@ bool receiveCanMsgs(void) {
   // check if delay time has elapsed
   if(sys_tick_cnt > SPEED_UPDATE_TIME_MS) {
     for(uint8_t idx = 0; idx < NUM_MOTORCONTROLLER; idx++) {
-      motorcontroller[idx].calculateTicksPerMs();
+      g_motorcontrollers[idx].calculateTicksPerSec();
     }
 
     // reset tick counter
     sys_tick_cnt = 0;
   }  
-}*/
+}
 
 void setup() {
   // Serial.begin(115200);
@@ -173,7 +178,7 @@ void setup() {
 
   // Init motorcontrollers
   for(uint8_t idx = 0; idx < NUM_MOTORCONTROLLER; idx++) {
-    motorcontroller[idx].init();
+    g_motorcontrollers[idx].init();
   }
   
   // SoftPWMSet(A0, 0);
@@ -183,12 +188,11 @@ void setup() {
   // //in loop PWM 
   // SoftPWMSet(A0, 128);
 
-  /* Speed calculation not used */
-  /*attachPinChangeInterrupt(digitalPinToPinChangeInterrupt(motorcontroller[0].getPinSignal()), 
-                                                          tickMotorcontroller1, CHANGE);
+  //attachPinChangeInterrupt(digitalPinToPinChangeInterrupt(g_motorcontrollers[0].getPinSignal()), 
+  //                                                        tickMotorcontroller1, CHANGE);
                                                           
-  attachPinChangeInterrupt(digitalPinToPinChangeInterrupt(motorcontroller[1].getPinSignal()), 
-                                                          tickMotorcontroller2, CHANGE);*/
+  //attachPinChangeInterrupt(digitalPinToPinChangeInterrupt(g_motorcontrollers[1].getPinSignal()), 
+  //                                                        tickMotorcontroller2, CHANGE);
 
 }
 
@@ -197,6 +201,8 @@ void loop() {
 
   // check if 1 ms has elapsed
   if((millis() - tmp_sys_tick) != 0){
+    tmp_sys_tick = millis();
+
     // receive CAN messages
     const bool new_can_msg = receiveCanMsgs();
 
@@ -204,21 +210,16 @@ void loop() {
     if(new_can_msg) {
       // update motor controllers
       for(uint8_t idx = 0; idx < NUM_MOTORCONTROLLER; idx++) {
-        motorcontroller[idx].setSpeed(can_control_msgs[idx]._power); //set speed -255 .. 255
-        motorcontroller[idx].brk(can_control_msgs[idx]._stop ? true : false);
+        g_motorcontrollers[idx].setSpeed(g_can_control_msgs[idx]._power); //set speed -255 .. 255
+        g_motorcontrollers[idx].setBrake(g_can_control_msgs[idx]._brake ? true : false);
       }
     }
 
     // send status on CAN
-    sendStatusOnCan();
+    //sendStatusOnCan();
 
-    
-    /* Speed calculation not used */
-    /*
+    /* No TX of status */
     // update wheel speeds
-    updateWheelSpeed();
-    */
-
-    tmp_sys_tick = millis();
+    // updateWheelSpeed();
   }
 }
