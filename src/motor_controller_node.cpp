@@ -46,6 +46,8 @@ public:
     NORMAL,
     BOGIE_UP_DRIVING,
     BOGIE_UP_STANDING,
+    CLIMP,
+    BOGIE_UP_BOOSTED,
   };
 
   RotationSpeed(void) = default;
@@ -65,6 +67,50 @@ public:
 
   double speedLeft(void) const noexcept { return _left; }
   double speedRight(void) const noexcept { return _right; }
+  double speedLeftFront(void) const noexcept
+  {
+    switch (_mode)
+    {
+    case Mode::NORMAL:
+      return _left;
+
+    case Mode::BOGIE_UP_DRIVING:
+      return _left;
+
+    case Mode::BOGIE_UP_STANDING:
+      return _left;
+
+    case Mode::CLIMP:
+    case Mode::BOGIE_UP_BOOSTED:
+      return _left + _climp_boost;
+
+    default:
+      ROS_ERROR("MotorController: unsportet mode.");
+      return 0.0;
+    }
+  }
+  double speedRightFront(void) const noexcept
+  {
+    switch (_mode)
+    {
+    case Mode::NORMAL:
+      return _right;
+
+    case Mode::BOGIE_UP_DRIVING:
+      return _right;
+
+    case Mode::BOGIE_UP_STANDING:
+      return _right;
+
+    case Mode::CLIMP:
+    case Mode::BOGIE_UP_BOOSTED:
+      return _right + _climp_boost;
+
+    default:
+      ROS_ERROR("MotorController: unsportet mode.");
+      return 0.0;
+    }
+  }
   double speedLeftMiddle(void) const noexcept
   {
     if (this->disableMiddle())
@@ -79,9 +125,14 @@ public:
       return _left + _plus_bogie_up_driving; // Maximum is more than 1.0!
 
     case Mode::BOGIE_UP_STANDING:
+    case Mode::BOGIE_UP_BOOSTED:
       return _left + _speed_bogie_up_standing;
 
+    case Mode::CLIMP:
+      return _left;
+
     default:
+      ROS_ERROR("MotorController: unsportet mode.");
       return 0.0;
     }
   }
@@ -99,14 +150,70 @@ public:
       return _right + _plus_bogie_up_driving; // Maximum is more than 1.0!
 
     case Mode::BOGIE_UP_STANDING:
+    case Mode::BOGIE_UP_BOOSTED:
       return _right + _speed_bogie_up_standing;
 
+    case Mode::CLIMP:
+      return _right;
+
     default:
+      ROS_ERROR("MotorController: unsportet mode.");
       return 0.0;
     }
   }
+  double speedLeftRear(void) const noexcept
+  {
+    switch (_mode)
+    {
+    case Mode::NORMAL:
+      return _left;
+
+    case Mode::BOGIE_UP_DRIVING:
+      return _left;
+
+    case Mode::BOGIE_UP_STANDING:
+    case Mode::BOGIE_UP_BOOSTED:
+      return  -_speed_bogie_up_standing;
+
+    case Mode::CLIMP:
+      return _left;
+
+    default:
+      ROS_ERROR("MotorController: unsportet mode.");
+      return 0.0;
+    }
+  }
+  double speedRightRear(void) const noexcept
+  {
+    switch (_mode)
+    {
+    case Mode::NORMAL:
+      return _right;
+
+    case Mode::BOGIE_UP_DRIVING:
+      return _right;
+
+    case Mode::BOGIE_UP_STANDING:
+    case Mode::BOGIE_UP_BOOSTED:
+      return -_speed_bogie_up_standing;
+
+    case Mode::CLIMP:
+      return _right;
+
+    default:
+      ROS_ERROR("MotorController: unsportet mode.");
+      return 0.0;
+    }
+  }
+
+  bool disableMiddle(void) const noexcept
+  {
+    return (_left > 0.0 && _right < 0.0) || (_left < 0.0 && _right > 0.0);
+  }
+
   static void setPlusBogieUpDriving(const double value) { _plus_bogie_up_driving = value; }
   static void setSpeedBogieUp(const double value) { _speed_bogie_up_standing = value; }
+  static void setClimpBoost(const double value) { _climp_boost = value; }
   void setMode(const Mode mode) { _mode = mode; }
 
 private:
@@ -118,10 +225,7 @@ private:
     if (value < -1.0)
       value = - 1.0;
   }
-  bool disableMiddle(void) const noexcept
-  {
-    return (_left > 0.0 && _right < 0.0) || (_left < 0.0 && _right > 0.0);
-  }
+
 
   double _left = 0.0;
   double _right = 0.0;
@@ -129,10 +233,12 @@ private:
 
   static double _plus_bogie_up_driving;
   static double _speed_bogie_up_standing;
+  static double _climp_boost;
 };
 
 double RotationSpeed::_plus_bogie_up_driving = 0.1;
 double RotationSpeed::_speed_bogie_up_standing = 0.2;
+double RotationSpeed::_climp_boost = 0.3;
 
 RotationSpeed rs;
 
@@ -143,14 +249,14 @@ void sendVelocity(const geometry_msgs::Twist& msg)
 
   rs.calculate(msg);
 
-  commandLeft._power = static_cast<std::int16_t>(rs.speedLeft() * 255.0);
-  commandLeft._brake = (rs.speedLeft() == 0.0 ? 1 : 0);
 
-  commandRight._power = static_cast<std::int16_t>(rs.speedRight() * 255.0);
-  commandRight._brake = (rs.speedRight() == 0.0 ? 1 : 0);
+  commandLeft._power = static_cast<std::int16_t>(rs.speedLeftFront() * 255.0);
+  commandLeft._brake = (rs.speedLeftFront() == 0.0 ? 1 : 0);
 
-  const bool disableMiddle = (commandLeft._power > 0.0 && commandRight._power < 0.0) ||
-                             (commandLeft._power < 0.0 && commandRight._power > 0.0);
+  commandRight._power = static_cast<std::int16_t>(rs.speedRightFront() * 255.0);
+  commandRight._brake = (rs.speedRightFront() == 0.0 ? 1 : 0);
+
+  const bool disableMiddle = rs.disableMiddle();
 
   // Left Side
   can.send(francor::motor_controller::CanMsg(0x11, 8, reinterpret_cast<char*>(commandLeft._raw_data)));
@@ -168,10 +274,18 @@ void sendVelocity(const geometry_msgs::Twist& msg)
   }
   else
   {
-    can.send(francor::motor_controller::CanMsg(0x21, 8, reinterpret_cast<char*>(commandLeft._raw_data)));
+    francor::MotorcontrolMsg command;
+
+    command._power = static_cast<std::int16_t>(rs.speedLeftMiddle() * 255.0);
+    command._brake = 0;
+
+    ROS_INFO("MotorController: set speed middle to %f.", rs.speedLeftMiddle());
+    can.send(francor::motor_controller::CanMsg(0x21, 8, reinterpret_cast<char*>(command._raw_data)));
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
 
+  commandLeft._brake = (rs.speedLeftRear() == 0.0 ? 1 : 0);
+  commandLeft._power = static_cast<std::int16_t>(rs.speedLeftRear() * 255.0);
   can.send(francor::motor_controller::CanMsg(0x31, 8, reinterpret_cast<char*>(commandLeft._raw_data)));
   std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
@@ -192,10 +306,18 @@ void sendVelocity(const geometry_msgs::Twist& msg)
   }
   else
   {
-    can.send(francor::motor_controller::CanMsg(0x22, 8, reinterpret_cast<char*>(commandRight._raw_data)));
+    francor::MotorcontrolMsg command;
+
+    command._power = static_cast<std::int16_t>(rs.speedRightMiddle() * 255.0);
+    command._brake = 0;
+
+    ROS_INFO("MotorController: set speed middle to %f.", rs.speedRightMiddle());
+    can.send(francor::motor_controller::CanMsg(0x22, 8, reinterpret_cast<char*>(command._raw_data)));
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
 
+  commandRight._power = static_cast<std::int16_t>(rs.speedRightRear() * 255.0);
+  commandRight._brake = (rs.speedRightRear() == 0.0 ? 1 : 0);
   can.send(francor::motor_controller::CanMsg(0x32, 8, reinterpret_cast<char*>(commandRight._raw_data)));
   std::this_thread::sleep_for(std::chrono::milliseconds(10));
 }
@@ -213,13 +335,34 @@ void callbackTwist(const geometry_msgs::Twist& msg)
 void callbackDriveMode(const std_msgs::String& msg)
 {
   if (msg.data == "NONE")
+  {
     rs.setMode(RotationSpeed::Mode::NORMAL);
+    ROS_INFO("MotorController: set mode normal.");
+  }
   else if (msg.data == "BOGIE_UP")
+  {
     rs.setMode(RotationSpeed::Mode::BOGIE_UP_STANDING);
+    ROS_INFO("MotorController: set mode bogie up standing.");
+  }
   else if (msg.data == "BOGIE_UP_DRIVE")
+  {
     rs.setMode(RotationSpeed::Mode::BOGIE_UP_DRIVING);
+    ROS_INFO("MotorController: set mode bogie up driving.");
+  }
+  else if (msg.data == "CLIMP")
+  {
+    rs.setMode(RotationSpeed::Mode::CLIMP);
+    ROS_INFO("MotorController: set mode climp.");
+  }
+  else if (msg.data == "BOGIE_UP_BOOSTED")
+  {
+    rs.setMode(RotationSpeed::Mode::BOGIE_UP_BOOSTED);
+    ROS_INFO("MotorController: set mode bogie up boosted.");
+  }
   else
+  {
     ROS_ERROR("Motorcontroller: drive mode it not supported.");
+  }
 }
 
 void callbackReceiveCan(const francor::motor_controller::CanMsg& msg)
@@ -232,14 +375,17 @@ int main(int argc, char** argv)
   ros::init(argc, argv, "motor_controller_node");
 
   ros::NodeHandle privateNh("~");
-  double plusBogieUp = 0.0;
-  double speedBogieUp = 0.0;
+  double plusBogieUp = 0.1;
+  double speedBogieUp = 0.4;
+  double climpBoost = 0.3;
 
   privateNh.param<double>("plus_bogie_up", plusBogieUp, plusBogieUp);
   privateNh.param<double>("speed_bogie_up", speedBogieUp, speedBogieUp);
+  privateNh.param<double>("climp_boost", climpBoost, climpBoost);
 
   RotationSpeed::setPlusBogieUpDriving(plusBogieUp);
   RotationSpeed::setSpeedBogieUp(speedBogieUp);
+  RotationSpeed::setClimpBoost(climpBoost);
 
   ros::NodeHandle nh;
   ros::Subscriber subTwist(nh.subscribe("/morty/twist", 2, callbackTwist));
