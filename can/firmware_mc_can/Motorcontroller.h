@@ -35,21 +35,23 @@
 #include <SoftPWM_timer.h>
 #include <SoftPWM.h>
 
+#include "MotorcontrollerMsg.h"
+
 namespace francor 
 {
 
 class Motorcontroller {
 public:
   Motorcontroller(uint8_t pin_speed, uint8_t pin_rot, 
-                  uint8_t pin_break, uint8_t pin_signal, 
+                  uint8_t pin_brake, uint8_t pin_signal, 
                   bool reverse = false) :
     _pin_speed(pin_speed),
     _pin_rot(pin_rot),
-    _pin_break(pin_break),
+    _pin_brake(pin_brake),
     _pin_signal(pin_signal),
-    _reverse(reverse ? -1 : 1),
-    _old_tick_timestamp(0),
-    _ticks_per_sec(0)
+    _reverse(reverse ? -1 : 1)
+    //_old_tick_timestamp(0),
+    //_ticks_per_sec(0)
   {
 
   }
@@ -61,11 +63,11 @@ public:
     //set output
     // ::pinMode(_pin_speed , OUTPUT);
     ::pinMode(_pin_rot   , OUTPUT);
-    ::pinMode(_pin_break , OUTPUT);
+    ::pinMode(_pin_brake , OUTPUT);
 
     // ::digitalWrite(_pin_speed , LOW);
     ::digitalWrite(_pin_rot   , LOW);
-    ::digitalWrite(_pin_break , LOW);
+    ::digitalWrite(_pin_brake , LOW);
 
     SoftPWMSet(_pin_speed, 0);
     SoftPWMSetFadeTime(_pin_speed, 10, 10);
@@ -94,34 +96,42 @@ public:
     SoftPWMSet(_pin_speed, sp);
   }
 
-  void brk(const bool brk) const
+  void setBrake(const bool brk) const
   {
-    ::digitalWrite(_pin_break, brk);
+    ::digitalWrite(_pin_brake, brk);
   }
 
   void tick(void) {
     _ticks++;
   }
 
-  void calculateTicksPerMs(void) {    
-    _ticks_per_sec = _ticks * 1000 / (millis() - _old_tick_timestamp);//static_cast<uint16_t>(speed);
+  void calculateTicksPerSec(void) {   
+    const uint32_t timestamp = millis();
+
+    // 
+    // 100 ticks t -> 100 ticks / 50 ms -> 2 ticks / ms ->
+
+    _speed_ticks = (uint16_t)(_ticks);
+    _delta_time_ticks   = (uint16_t)(timestamp - _old_tick_timestamp);
 
     _ticks = 0;
-    _old_tick_timestamp = millis();
+    _old_tick_timestamp = timestamp;
   }
 
   const uint8_t getPinSignal() const {return _pin_signal;}
-  const uint16_t getTicksPerSec(void) const {return _ticks_per_sec;}
+  const uint16_t getSpeedTicks(void) const {return _speed_ticks;}
+  const uint16_t getDTimeSpeedTicks(void) const {return _delta_time_ticks;}
 
 private:
-  volatile uint16_t _ticks;
-
+  volatile uint32_t _ticks;
   uint32_t  _old_tick_timestamp;
-  uint16_t  _ticks_per_sec;
+
+  uint16_t  _delta_time_ticks;
+  uint16_t  _speed_ticks;
 
   const uint8_t _pin_speed;
   const uint8_t _pin_rot  ;
-  const uint8_t _pin_break;
+  const uint8_t _pin_brake;
   const uint8_t _pin_signal;
 
   const int8_t   _reverse;

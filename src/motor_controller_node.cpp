@@ -29,6 +29,7 @@
 */
 #include <ros/ros.h>
 #include <geometry_msgs/TwistStamped.h>
+#include <std_msgs/String.h>
 
 #include "francor_motor_controller/CanInterface.h"
 #include "firmware_mc_can/MotorcontrollerMsg.h"
@@ -40,15 +41,22 @@ francor::motor_controller::CanInterface can;
 class RotationSpeed
 {
 public:
+
+  enum class Mode : std::uint8_t {
+    NORMAL,
+    BOGIE_UP_DRIVING,
+    BOGIE_UP_STANDING,
+  };
+
   RotationSpeed(void) = default;
   ~RotationSpeed(void) = default;
 
   void calculate(const geometry_msgs::Twist& msg)
   {
-    _left = -msg.angular.z;
-    _right = msg.angular.z;
+    _left  = -msg.angular.z;
+    _right =  msg.angular.z;
 
-    _left += msg.linear.x;
+    _left  += msg.linear.x;
     _right += msg.linear.x;
 
     this->cut(_left);
@@ -57,6 +65,49 @@ public:
 
   double speedLeft(void) const noexcept { return _left; }
   double speedRight(void) const noexcept { return _right; }
+  double speedLeftMiddle(void) const noexcept
+  {
+    if (this->disableMiddle())
+      return 0.0;
+
+    switch (_mode)
+    {
+    case Mode::NORMAL:
+      return _left;
+
+    case Mode::BOGIE_UP_DRIVING:
+      return _left + _plus_bogie_up_driving; // Maximum is more than 1.0!
+
+    case Mode::BOGIE_UP_STANDING:
+      return _left + _speed_bogie_up_standing;
+
+    default:
+      return 0.0;
+    }
+  }
+  double speedRightMiddle(void) const noexcept
+  {
+    if (this->disableMiddle())
+      return 0.0;
+
+    switch (_mode)
+    {
+    case Mode::NORMAL:
+      return _right;
+
+    case Mode::BOGIE_UP_DRIVING:
+      return _right + _plus_bogie_up_driving; // Maximum is more than 1.0!
+
+    case Mode::BOGIE_UP_STANDING:
+      return _right + _speed_bogie_up_standing;
+
+    default:
+      return 0.0;
+    }
+  }
+  static void setPlusBogieUpDriving(const double value) { _plus_bogie_up_driving = value; }
+  static void setSpeedBogieUp(const double value) { _speed_bogie_up_standing = value; }
+  void setMode(const Mode mode) { _mode = mode; }
 
 private:
   void cut(double& value)
@@ -67,14 +118,26 @@ private:
     if (value < -1.0)
       value = - 1.0;
   }
+  bool disableMiddle(void) const noexcept
+  {
+    return (_left > 0.0 && _right < 0.0) || (_left < 0.0 && _right > 0.0);
+  }
 
   double _left = 0.0;
   double _right = 0.0;
+  Mode _mode = Mode::NORMAL;
+
+  static double _plus_bogie_up_driving;
+  static double _speed_bogie_up_standing;
 };
+
+double RotationSpeed::_plus_bogie_up_driving = 0.1;
+double RotationSpeed::_speed_bogie_up_standing = 0.2;
+
+RotationSpeed rs;
 
 void sendVelocity(const geometry_msgs::Twist& msg)
 {
-  static RotationSpeed rs;
   francor::MotorcontrolMsg commandLeft;
   francor::MotorcontrolMsg commandRight;
 
@@ -147,6 +210,17 @@ void callbackTwist(const geometry_msgs::Twist& msg)
   sendVelocity(msg);
 }
 
+void callbackDriveMode(const std_msgs::String& msg)
+{
+  if (msg.data == "NONE")
+    rs.setMode(RotationSpeed::Mode::NORMAL);
+  else if (msg.data == "BOGIE_UP")
+    rs.setMode(RotationSpeed::Mode::BOGIE_UP_STANDING);
+  else if (msg.data == "BOGIE_UP_DRIVE")
+    rs.setMode(RotationSpeed::Mode::BOGIE_UP_DRIVING);
+  else
+    ROS_ERROR("Motorcontroller: drive mode it not supported.");
+}
 
 void callbackReceiveCan(const francor::motor_controller::CanMsg& msg)
 {
@@ -157,9 +231,20 @@ int main(int argc, char** argv)
 {
   ros::init(argc, argv, "motor_controller_node");
 
+  ros::NodeHandle privateNh("~");
+  double plusBogieUp = 0.0;
+  double speedBogieUp = 0.0;
+
+  privateNh.param<double>("plus_bogie_up", plusBogieUp, plusBogieUp);
+  privateNh.param<double>("speed_bogie_up", speedBogieUp, speedBogieUp);
+
+  RotationSpeed::setPlusBogieUpDriving(plusBogieUp);
+  RotationSpeed::setSpeedBogieUp(speedBogieUp);
+
   ros::NodeHandle nh;
   ros::Subscriber subTwist(nh.subscribe("/morty/twist", 2, callbackTwist));
   ros::Subscriber subTwistStamped(nh.subscribe("/morty/twist_stamped", 2, callbackTwistStamped));
+  ros::Subscriber subMode(nh.subscribe("drive/action", 2, callbackDriveMode));
 
   can.initialize("can0", callbackReceiveCan);
   can.start();
