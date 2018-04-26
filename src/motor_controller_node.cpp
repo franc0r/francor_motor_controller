@@ -144,10 +144,10 @@ void sendVelocity(const geometry_msgs::Twist& msg)
   rs.calculate(msg);
 
   commandLeft._power = static_cast<std::int16_t>(rs.speedLeft() * 255.0);
-  commandLeft._stop = (rs.speedLeft() == 0.0 ? 1 : 0);
+  commandLeft._brake = (rs.speedLeft() == 0.0 ? 1 : 0);
 
   commandRight._power = static_cast<std::int16_t>(rs.speedRight() * 255.0);
-  commandRight._stop = (rs.speedRight() == 0.0 ? 1 : 0);
+  commandRight._brake = (rs.speedRight() == 0.0 ? 1 : 0);
 
   const bool disableMiddle = (commandLeft._power > 0.0 && commandRight._power < 0.0) ||
                              (commandLeft._power < 0.0 && commandRight._power > 0.0);
@@ -161,7 +161,7 @@ void sendVelocity(const geometry_msgs::Twist& msg)
     francor::MotorcontrolMsg command;
 
     command._power = 0.0;
-    command._stop = 0;
+    command._brake = 0;
 
     can.send(francor::motor_controller::CanMsg(0x21, 8, reinterpret_cast<char*>(command._raw_data)));
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -185,7 +185,7 @@ void sendVelocity(const geometry_msgs::Twist& msg)
     francor::MotorcontrolMsg command;
 
     command._power = 0.0;
-    command._stop = 0;
+    command._brake = 0;
 
     can.send(francor::motor_controller::CanMsg(0x22, 8, reinterpret_cast<char*>(command._raw_data)));
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
