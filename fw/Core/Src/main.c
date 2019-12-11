@@ -71,6 +71,13 @@ static void MX_USART2_UART_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+void setPulseWidth(const uint32_t pulse_width)
+{
+  htim1.Instance->CCR1 = pulse_width;
+  htim1.Instance->CCR2 = pulse_width;
+  htim1.Instance->CCR3 = pulse_width;
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -80,7 +87,7 @@ static void MX_USART2_UART_Init(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+  //std::vector<uint8_t> _vec_list;
   /* USER CODE END 1 */
   
 
@@ -110,13 +117,9 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
+
   // Enable HALL Timer
-  //HAL_TIM_Base_Start_IT(&htim4);
-  //__HAL_TIM_ENABLE_IT(&htim4, TIM_IT_CC2);
-  //HAL_TIMEx_HallSensor_Start_IT(&htim4);
-
-
-
+  HAL_TIMEx_HallSensor_Start_IT(&htim4);
 
   /* USER CODE END 2 */
 
@@ -129,9 +132,6 @@ int main(void)
                            | (HAL_GPIO_ReadPin(M_HB_GPIO_Port, M_HB_Pin) << 1U)
                            | (HAL_GPIO_ReadPin(M_HC_GPIO_Port, M_HC_Pin) << 2u));
 
-    if(enc != enc_strd) {
-      HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-    }
 
     enc_strd = enc;
     /* USER CODE END WHILE */
@@ -474,7 +474,7 @@ static void MX_TIM4_Init(void)
   htim4.Instance = TIM4;
   htim4.Init.Prescaler = 42000-1;
   htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim4.Init.Period = 1000;
+  htim4.Init.Period = 65535;
   htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV4;
   htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
@@ -589,33 +589,16 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
-void HAL_TIMEx_CommutationCallback(TIM_HandleTypeDef *htim)
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
-  HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+  if(htim->Instance == htim4.Instance)
+  {
+    HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+  }
+
 }
 
 /* USER CODE END 4 */
-
-/**
-  * @brief  Period elapsed callback in non blocking mode
-  * @note   This function is called  when TIM17 interrupt took place, inside
-  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
-  * a global variable "uwTick" used as application time base.
-  * @param  htim : TIM handle
-  * @retval None
-  */
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-{
-  /* USER CODE BEGIN Callback 0 */
-
-  /* USER CODE END Callback 0 */
-  if (htim->Instance == TIM17) {
-    HAL_IncTick();
-  }
-  /* USER CODE BEGIN Callback 1 */
-
-  /* USER CODE END Callback 1 */
-}
 
 /**
   * @brief  This function is executed in case of error occurrence.
