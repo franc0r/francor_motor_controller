@@ -53,6 +53,18 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 
+const uint32_t BLDC_COMMUTATION_FWD[] =
+{
+  /*TIM_CCER_CC1E | TIM_CCER_CC1NE | TIM_CCER_CC2E | TIM_CCER_CC2NE | TIM_CCER_CC3E | TIM_CCER_CC3NE*/
+  0,
+  TIM_CCER_CC1E  | TIM_CCER_CC3NE,
+  TIM_CCER_CC1NE | TIM_CCER_CC2E,
+  TIM_CCER_CC2E  | TIM_CCER_CC3NE,
+  TIM_CCER_CC2NE | TIM_CCER_CC3E,
+  TIM_CCER_CC1E  | TIM_CCER_CC2NE,
+  TIM_CCER_CC1NE | TIM_CCER_CC3E
+};
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -87,7 +99,6 @@ void setPulseWidth(const uint32_t pulse_width)
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-  //std::vector<uint8_t> _vec_list;
   /* USER CODE END 1 */
   
 
@@ -117,14 +128,34 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
+  // Enable PWM Timer
+  setPulseWidth(1500);
+  HAL_TIM_Base_Start(&htim1);
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+  HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1);
+
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+  HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_2);
+
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+  HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_3);
 
   // Enable HALL Timer
+  __HAL_TIM_ENABLE_IT(&htim4, TIM_IT_CC2);
   HAL_TIMEx_HallSensor_Start_IT(&htim4);
+
+  htim4.Instance->CCR2 = 1u;
+
+  // Enable Commutation event
+  //HAL_TIMEx_ConfigCommutEvent_IT(&htim1, TIM_TS_ITR1, TIM_COMMUTATION_TRGI);
+
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  //setPulseWidth(1000u);
+
   uint8_t enc_strd = 0u;
   while (1)
   {
@@ -132,6 +163,12 @@ int main(void)
                            | (HAL_GPIO_ReadPin(M_HB_GPIO_Port, M_HB_Pin) << 1U)
                            | (HAL_GPIO_ReadPin(M_HC_GPIO_Port, M_HC_Pin) << 2u));
 
+
+    htim1.Instance->CCER = BLDC_COMMUTATION_FWD[enc];
+
+    if(enc_strd != enc) {
+      HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+    }
 
     enc_strd = enc;
     /* USER CODE END WHILE */
@@ -431,7 +468,7 @@ static void MX_TIM1_Init(void)
   sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
   sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
   sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
-  sBreakDeadTimeConfig.DeadTime = 0;
+  sBreakDeadTimeConfig.DeadTime = 20;
   sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
   sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
   sBreakDeadTimeConfig.BreakFilter = 0;
@@ -593,7 +630,7 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
   if(htim->Instance == htim4.Instance)
   {
-    HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+
   }
 
 }
