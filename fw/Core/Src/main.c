@@ -65,6 +65,8 @@ const uint32_t BLDC_COMMUTATION_FWD[] =
   TIM_CCER_CC1NE | TIM_CCER_CC3E
 };
 
+volatile uint16_t g_adc_poti_raw_value = 0u;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -128,6 +130,9 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
+  // Config ADC
+  HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED);
+
   // Enable PWM Timer
   setPulseWidth(1500);
   HAL_TIM_Base_Start(&htim1);
@@ -144,7 +149,10 @@ int main(void)
   __HAL_TIM_ENABLE_IT(&htim4, TIM_IT_CC2);
   HAL_TIMEx_HallSensor_Start_IT(&htim4);
 
-  htim4.Instance->CCR2 = 1u;
+  htim4.Instance->CCR2 = 1000u;
+
+  // Start ADC
+  HAL_ADC_Start_IT(&hadc1);
 
   // Enable Commutation event
   //HAL_TIMEx_ConfigCommutEvent_IT(&htim1, TIM_TS_ITR1, TIM_COMMUTATION_TRGI);
@@ -156,21 +164,20 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   //setPulseWidth(1000u);
 
-  uint8_t enc_strd = 0u;
+  uint16_t poti_adc_value = 0u;
   while (1)
   {
-    const uint8_t enc = (HAL_GPIO_ReadPin(M_HA_GPIO_Port, M_HA_Pin)
-                           | (HAL_GPIO_ReadPin(M_HB_GPIO_Port, M_HB_Pin) << 1U)
-                           | (HAL_GPIO_ReadPin(M_HC_GPIO_Port, M_HC_Pin) << 2u));
 
-
-    htim1.Instance->CCER = BLDC_COMMUTATION_FWD[enc];
-
-    if(enc_strd != enc) {
-      HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+    poti_adc_value = g_adc_poti_raw_value;
+    if(poti_adc_value > htim1.Init.Period) {
+      poti_adc_value = htim1.Init.Period;
     }
 
-    enc_strd = enc;
+    setPulseWidth(poti_adc_value);
+    HAL_Delay(10u);
+
+
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -253,20 +260,20 @@ static void MX_ADC1_Init(void)
   /** Common config 
   */
   hadc1.Instance = ADC1;
-  hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV128;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc1.Init.GainCompensation = 0;
   hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   hadc1.Init.LowPowerAutoWait = DISABLE;
-  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.ContinuousConvMode = ENABLE;
   hadc1.Init.NbrOfConversion = 1;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc1.Init.DMAContinuousRequests = DISABLE;
-  hadc1.Init.Overrun = ADC_OVR_DATA_PRESERVED;
+  hadc1.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
   hadc1.Init.OversamplingMode = DISABLE;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
   {
@@ -317,7 +324,7 @@ static void MX_ADC2_Init(void)
   /** Common config 
   */
   hadc2.Instance = ADC2;
-  hadc2.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
+  hadc2.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV128;
   hadc2.Init.Resolution = ADC_RESOLUTION_12B;
   hadc2.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc2.Init.GainCompensation = 0;
@@ -468,7 +475,7 @@ static void MX_TIM1_Init(void)
   sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
   sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
   sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
-  sBreakDeadTimeConfig.DeadTime = 20;
+  sBreakDeadTimeConfig.DeadTime = 193;
   sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
   sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
   sBreakDeadTimeConfig.BreakFilter = 0;
@@ -630,9 +637,25 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
   if(htim->Instance == htim4.Instance)
   {
+    const uint8_t enc = (HAL_GPIO_ReadPin(M_HA_GPIO_Port, M_HA_Pin)
+                               | (HAL_GPIO_ReadPin(M_HB_GPIO_Port, M_HB_Pin) << 1U)
+                               | (HAL_GPIO_ReadPin(M_HC_GPIO_Port, M_HC_Pin) << 2u));
 
+
+    htim1.Instance->CCER = BLDC_COMMUTATION_FWD[enc];
+
+    HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
   }
 
+}
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
+{
+  /* Check if ADC1 is triggered */
+  if(hadc->Instance == hadc1.Instance)
+  {
+    g_adc_poti_raw_value = hadc->Instance->DR & 0xFFF;
+  }
 }
 
 /* USER CODE END 4 */
