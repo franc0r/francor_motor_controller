@@ -68,17 +68,6 @@ volatile uint8_t  g_data_updated = 0u;
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-/**
- * @brief Calculate the current sector
- *
- * @param angle Angle of rotor with 0.1 acurracy (e.g. 253 = 25.3°)
- */
-const uint8_t getActvSector(const uint16_t angle)
-{
-  const uint16_t angle_lim = (angle % 3600) / 600;
-  return (uint8_t)angle_lim;
-}
-
 /* USER CODE END 0 */
 
 /**
@@ -90,7 +79,7 @@ int main(void)
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
-  
+
 
   /* MCU Configuration--------------------------------------------------------*/
 
@@ -128,8 +117,8 @@ int main(void)
 
   //htim1.Instance->CCER = com_table[0];
   /* USER CODE END 2 */
- 
- 
+
+
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
@@ -145,7 +134,8 @@ int main(void)
 
   // Calculate timing prefix -> usec time base
   // (2 / sqrt(3)) * T0 * mi = 5.77f;
-  const float prefix = 6.0f;
+  const float prefix = 9.0f;
+
 
   while (1)
   {
@@ -173,7 +163,7 @@ int main(void)
     }
 
 
-    if(angle_up == 1) angle += 5u;
+    if(angle_up == 1) angle += 1u;
     else angle -= 10;
 
     //if(angle >= 3500) angle_up = 0u;
@@ -181,7 +171,7 @@ int main(void)
 
     if(angle >= 3600) angle = 0u;
 
-    HAL_Delay(10u);
+    //HAL_Delay(10u);
   }
   /* USER CODE END 3 */
 }
@@ -249,9 +239,9 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 0;
+  htim1.Init.Prescaler = 1;
   htim1.Init.CounterMode = TIM_COUNTERMODE_CENTERALIGNED1;
-  htim1.Init.Period = 1204;
+  htim1.Init.Period = 1200;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
