@@ -23,7 +23,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <stdio.h>
+#include <math.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -33,6 +34,8 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define M_PWM_FREQ_KHZ 15.0f
+#define M_MAX_MOD 0.866f
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -41,14 +44,23 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc1;
+
 TIM_HandleTypeDef htim1;
+TIM_HandleTypeDef htim14;
 
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-volatile uint32_t g_elec_angle = 0u; //!< Electrical angle 1 = 0.001 rad
-volatile float    g_elec_speed = 1.0f; //!< Speed in Hz
-volatile float    g_pwm_freq_kHz = 15.0f; //!< PWM frequency in kHz
+volatile float    g_poti_angle = 0.0f;
+volatile float    g_mod       = 0.25f; //!< Modulation index
+volatile uint16_t g_elec_angle_deg = 0u;  //!< Electrical angle 1 = 0.1 deg
+volatile uint8_t  g_elec_sector    = 0u;  //!< Sector (0 - 5)
+volatile uint16_t g_ccr_ta         = 0u;  //!< CCR value for a
+volatile uint16_t g_ccr_tb         = 0u;  //!< CCR value for b
+volatile uint16_t g_ccr_t0         = 0u;  //!< CCR value for 0
+volatile int8_t   g_dir            = 1;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -56,6 +68,8 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM1_Init(void);
+static void MX_ADC1_Init(void);
+static void MX_TIM14_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -70,7 +84,7 @@ static void MX_TIM1_Init(void);
   * @retval int
   */
 int main(void)
-{
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 {
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
@@ -95,7 +109,10 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_TIM1_Init();
+  MX_ADC1_Init();
+  MX_TIM14_Init();
   /* USER CODE BEGIN 2 */
+  HAL_ADC_Start_IT(&hadc1);
 
   HAL_GPIO_WritePin(M_EN_U_GPIO_Port, M_EN_U_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(M_EN_V_GPIO_Port, M_EN_V_Pin, GPIO_PIN_SET);
@@ -106,15 +123,48 @@ int main(void)
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
 
-  htim1.Instance->CCR1 = 100u;
+
+  HAL_TIM_Base_Start_IT(&htim14);
+  htim14.Instance->ARR = 50;
+
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  uint32_t msg_cnt = 1u;
+  uint8_t  mode = 0;
 
   while (1)
   {
+    //printf("Angle: %.1f Sector: %i\n", (float)(g_elec_angle_deg)*0.1f, g_elec_sector);
+
+    const float poti = (g_poti_angle - 0.5f) * 2.0f;
+
+    g_dir = (int8_t)(poti * 9.0f);
+
+    if(g_dir == 0) {
+      g_mod = 0.0f;
+    }
+    else {
+      g_mod = 0.1f + fabsf(poti) * 0.27f;
+    }
+
+    msg_cnt++;
+
+    if(HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin) == GPIO_PIN_RESET) {
+      if(mode == 0) {
+        htim14.Instance->ARR = 50;
+        mode = 1;
+      }
+      else {
+        htim14.Instance->ARR = 500;
+        mode = 0;
+      }
+    }
+
+    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+    HAL_Delay(100u);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -169,6 +219,56 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief ADC1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC1_Init(void)
+{
+
+  /* USER CODE BEGIN ADC1_Init 0 */
+
+  /* USER CODE END ADC1_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC1_Init 1 */
+
+  /* USER CODE END ADC1_Init 1 */
+  /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion) 
+  */
+  hadc1.Instance = ADC1;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
+  hadc1.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc1.Init.ScanConvMode = DISABLE;
+  hadc1.Init.ContinuousConvMode = ENABLE;
+  hadc1.Init.DiscontinuousConvMode = DISABLE;
+  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc1.Init.NbrOfConversion = 1;
+  hadc1.Init.DMAContinuousRequests = DISABLE;
+  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  if (HAL_ADC_Init(&hadc1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time. 
+  */
+  sConfig.Channel = ADC_CHANNEL_12;
+  sConfig.Rank = 1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC1_Init 2 */
+
+  /* USER CODE END ADC1_Init 2 */
+
 }
 
 /**
@@ -241,6 +341,37 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 2 */
   HAL_TIM_MspPostInit(&htim1);
+
+}
+
+/**
+  * @brief TIM14 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM14_Init(void)
+{
+
+  /* USER CODE BEGIN TIM14_Init 0 */
+
+  /* USER CODE END TIM14_Init 0 */
+
+  /* USER CODE BEGIN TIM14_Init 1 */
+
+  /* USER CODE END TIM14_Init 1 */
+  htim14.Instance = TIM14;
+  htim14.Init.Prescaler = 45-1;
+  htim14.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim14.Init.Period = 1000-1;
+  htim14.Init.ClockDivision = TIM_CLOCKDIVISION_DIV4;
+  htim14.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim14) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM14_Init 2 */
+
+  /* USER CODE END TIM14_Init 2 */
 
 }
 
@@ -322,11 +453,112 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
+int __io_putchar(int ch)
+{
+  static uint8_t tx_buffer[256];
+  static uint8_t tx_buffer_pos = 0u;
+
+  if(tx_buffer_pos < 254) {
+    tx_buffer[tx_buffer_pos++] = (uint8_t)ch;
+  }
+
+  if((tx_buffer[tx_buffer_pos - 1] == '\n') ||
+      tx_buffer_pos >= 254) {
+    tx_buffer[tx_buffer_pos++] = '\r';
+    HAL_UART_Transmit(&huart2, tx_buffer, tx_buffer_pos, 100u);
+    tx_buffer_pos = 0u;
+  }
+
+  return 0;
+}
+
+
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   if(htim->Instance == htim1.Instance)
   {
-    __NOP();
+    switch(g_elec_sector)
+    {
+      case 0: {
+        htim1.Instance->CCR1 = g_ccr_t0;
+        htim1.Instance->CCR2 = g_ccr_t0 + g_ccr_tb;
+        htim1.Instance->CCR3 = g_ccr_t0 + g_ccr_tb + g_ccr_ta;
+      }break;
+
+      case 1: {
+        htim1.Instance->CCR1 = g_ccr_t0;
+        htim1.Instance->CCR2 = g_ccr_t0 + g_ccr_ta + g_ccr_tb;
+        htim1.Instance->CCR3 = g_ccr_t0 + g_ccr_ta;
+      }break;
+
+      case 2: {
+        htim1.Instance->CCR1 = g_ccr_t0 + g_ccr_tb;
+        htim1.Instance->CCR2 = g_ccr_t0 + g_ccr_ta + g_ccr_tb;
+        htim1.Instance->CCR3 = g_ccr_t0;
+      }break;
+
+      case 3: {
+        htim1.Instance->CCR1 = g_ccr_t0 + g_ccr_ta + g_ccr_tb;
+        htim1.Instance->CCR2 = g_ccr_t0 + g_ccr_ta;
+        htim1.Instance->CCR3 = g_ccr_t0;
+      }break;
+
+      case 4: {
+        htim1.Instance->CCR1 = g_ccr_t0 + g_ccr_ta + g_ccr_tb;
+        htim1.Instance->CCR2 = g_ccr_t0;
+        htim1.Instance->CCR3 = g_ccr_t0 + g_ccr_tb;
+      }break;
+
+      case 5: {
+        htim1.Instance->CCR1 = g_ccr_t0 + g_ccr_ta;
+        htim1.Instance->CCR2 = g_ccr_t0;
+        htim1.Instance->CCR3 = g_ccr_t0 + g_ccr_ta + g_ccr_tb;
+      }break;
+    }
+  }
+
+  else if(htim->Instance == htim14.Instance)
+  {
+    // Update electrical angle
+    g_elec_angle_deg += g_dir;
+
+    // Limit electrical angle to 360 deg
+    if(g_elec_angle_deg > 3600u && g_dir > 0) {
+      g_elec_angle_deg = g_elec_angle_deg % 3600u;
+    }
+    else if(g_elec_angle_deg > 3600u && g_dir < 0) {
+      g_elec_angle_deg = 3600u;
+    }
+
+    // Calculate active sector 0 - 5 (0 - 360 with 60 deg steps)
+    g_elec_sector = g_elec_angle_deg / 600;
+
+    if(g_elec_sector >= 6) g_elec_sector = 0u;
+
+    // Calculate time weights
+    const float angle_rad = (float)(g_elec_angle_deg % 600) * (M_PI / 1800.0f);
+
+    // 2/sqrt(3) = 1.1547005
+    const float weight_a = fabs(1.1547f * g_mod * sinf((M_PI/3.0f) - angle_rad));
+    const float weight_b = fabs(1.1547f * g_mod * sinf(angle_rad));
+
+    // Calculate CCR values
+    g_ccr_ta  = (uint16_t)(weight_a * 1000.0f);
+    g_ccr_tb  = (uint16_t)(weight_b * 1000.0f);
+    g_ccr_t0  = (1000 - g_ccr_ta - g_ccr_tb) >> 1u;
+  }
+}
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
+{
+  if(hadc->Instance == hadc1.Instance)
+  {
+    const float poti_angle  = (float)(hadc->Instance->DR + 1u) / 4095.0f;
+
+    if(fabsf(poti_angle - g_poti_angle) > 0.01f) {
+      g_poti_angle = poti_angle;
+    }
   }
 }
 
